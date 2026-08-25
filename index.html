@@ -119,7 +119,7 @@
             
             // 1. Ear Canal
             let k = 2 * Math.PI * freq / C;
-            let damping = 0.2;
+            let damping = 0.0014 / diam;
             let mag_c = 20 * Math.log10(1.0 / Math.sqrt(Math.pow(Math.cos(k * length), 2) + Math.pow(damping * Math.sin(k * length), 2)));
             mag_canal.push(mag_c);
 
