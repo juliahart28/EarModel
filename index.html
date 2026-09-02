@@ -308,9 +308,15 @@ function updateApp() {
         title: 'Complete Outer & Middle Ear Transfer Function',
         xaxis: { type: 'log', title: 'Frequency (Hz)', range: [2, Math.log10(20000)] },
         yaxis: { title: 'Magnitude (dB)', range: [-30, 60] },
-        margin: { l: 50, r: 20, t: 50, b: 50 },
+        margin: { l: 50, r: 20, t: 50, b: 100 }, // Increased bottom margin (b) to 100
         hovermode: 'closest',
-        legend: { x: 0.02, y: 0.98 }
+        legend: { 
+            orientation: 'h', 
+            yanchor: 'top', 
+            y: -0.15, 
+            xanchor: 'center', 
+            x: 0.5 
+        }
     };
 
     Plotly.newPlot('chart', [
