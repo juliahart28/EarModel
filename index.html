@@ -98,200 +98,168 @@ function Z_R(R) { return new Complex(R, 0); }
 function Z_L(L, w) { return new Complex(0, w * L); }
 function Z_C(C, w) { return new Complex(0, -1 / (w * C)); }
 function parallel(z1, z2) { return (z1.mul(z2)).div(z1.add(z2)); }
-    const C = 343.0; // Speed of sound
 
-    // Generate log-spaced frequencies from 100 to 20000 Hz
-    const numPoints = 500;
-    const f = Array.from({length: numPoints}, (_, i) => 
-        Math.pow(10, Math.log10(100) + i * (Math.log10(20000) - Math.log10(100)) / (numPoints - 1))
-    );
+const C = 343.0; // Speed of sound
 
-    function updateApp() {
-        // Get values from sliders
-        const length = parseFloat(document.getElementById('s_len').value);
-        const diam = parseFloat(document.getElementById('s_diam').value);
-        const vol = parseFloat(document.getElementById('s_vol').value);
-        const aper = parseFloat(document.getElementById('s_aper').value);
-        const cdepth = parseFloat(document.getElementById('s_cdepth').value);
-        const refgeom = parseFloat(document.getElementById('s_refgeom').value);
-        const path = parseFloat(document.getElementById('s_path').value);
-        const strength = parseFloat(document.getElementById('s_strength').value);
-        const azim = parseFloat(document.getElementById('s_azim').value);
-        const elev = parseFloat(document.getElementById('s_elev').value);
+// Generate log-spaced frequencies from 100 to 20000 Hz
+const numPoints = 500;
+const f = Array.from({length: numPoints}, (_, i) => 
+    Math.pow(10, Math.log10(100) + i * (Math.log10(20000) - Math.log10(100)) / (numPoints - 1))
+);
 
-        // Update labels
-        document.getElementById('val_len').innerText = length.toFixed(4);
-        document.getElementById('val_diam').innerText = diam.toFixed(4);
-        document.getElementById('val_vol').innerText = vol.toExponential(1);
-        document.getElementById('val_aper').innerText = aper.toExponential(1);
-        document.getElementById('val_cdepth').innerText = cdepth.toFixed(4);
-        document.getElementById('val_refgeom').innerText = refgeom.toFixed(4);
-        document.getElementById('val_path').innerText = path.toFixed(4);
-        document.getElementById('val_strength').innerText = strength.toFixed(2);
-        document.getElementById('val_azim').innerText = azim;
-        document.getElementById('val_elev').innerText = elev;
+function updateApp() {
+    // Get values from sliders
+    const length = parseFloat(document.getElementById('s_len').value);
+    const diam = parseFloat(document.getElementById('s_diam').value);
+    const vol = parseFloat(document.getElementById('s_vol').value);
+    const aper = parseFloat(document.getElementById('s_aper').value);
+    const cdepth = parseFloat(document.getElementById('s_cdepth').value);
+    const refgeom = parseFloat(document.getElementById('s_refgeom').value);
+    const path = parseFloat(document.getElementById('s_path').value);
+    const strength = parseFloat(document.getElementById('s_strength').value);
+    const azim = parseFloat(document.getElementById('s_azim').value);
+    const elev = parseFloat(document.getElementById('s_elev').value);
 
-        let mag_total = [], mag_canal = [], mag_cavity = [], mag_reflector = [], mag_pinna = [];
-        let fh = 0;
+    // Update labels
+    document.getElementById('val_len').innerText = length.toFixed(4);
+    document.getElementById('val_diam').innerText = diam.toFixed(4);
+    document.getElementById('val_vol').innerText = vol.toExponential(1);
+    document.getElementById('val_aper').innerText = aper.toExponential(1);
+    document.getElementById('val_cdepth').innerText = cdepth.toFixed(4);
+    document.getElementById('val_refgeom').innerText = refgeom.toFixed(4);
+    document.getElementById('val_path').innerText = path.toFixed(4);
+    document.getElementById('val_strength').innerText = strength.toFixed(2);
+    document.getElementById('val_azim').innerText = azim;
+    document.getElementById('val_elev').innerText = elev;
 
-        for (let i = 0; i < f.length; i++) {
-            let freq = f[i];
-            
-            // 1. Ear Canal
-            let k = 2 * Math.PI * freq / C;
-            let damping = 0.0014 / diam;
-            let mag_c = 20 * Math.log10(1.0 / Math.sqrt(Math.pow(Math.cos(k * length), 2) + Math.pow(damping * Math.sin(k * length), 2)));
-            mag_canal.push(mag_c);
+    // Initialize all arrays at the top
+    let mag_total = [], mag_canal = [], mag_cavity = [], mag_reflector = [], mag_pinna = [];
+    let mag_middle = [], mag_combined = [];
+    let fh = 0;
 
-            // 2. Concha Cavity
-            let r = Math.sqrt(aper / Math.PI);
-            let L_eff = cdepth + 0.85 * r;
-            fh = (C / (2 * Math.PI)) * Math.sqrt(aper / (vol * L_eff));
-            let w = freq / fh;
-            let Q = 3.0;
-            let mag_cav = 20 * Math.log10(1.0 + (1.5 / Math.sqrt(1 + Math.pow(Q, 2) * Math.pow(w - 1/w, 2))));
-            mag_cavity.push(mag_cav);
-
-            // 3. Concha Reflector
-            let f_cut = C / refgeom;
-            let mag_ref = 20 * Math.log10(1.0 + 1.5 * (Math.pow(freq, 2) / (Math.pow(f_cut, 2) + Math.pow(freq, 2))));
-            mag_reflector.push(mag_ref);
-
-            // 4. Pinna Reflections
-            let angle_mod = 1.0 - 0.005 * elev + 0.002 * azim;
-            let delay = (path * angle_mod) / C;
-            // Using magnitude of complex exponential: |1 + r*e^(-j*theta)|
-            let theta = -2 * Math.PI * freq * delay;
-            let mag_p = 20 * Math.log10(Math.sqrt(1 + Math.pow(strength, 2) + 2 * strength * Math.cos(theta)));
-            mag_pinna.push(mag_p);
-
-            // Combine
-            mag_total.push(mag_c + mag_cav + mag_ref + mag_p);
-
-            let mag_middle = [];
-let mag_combined = [];
-
-for (let i = 0; i < f.length; i++) {
-    let freq = f[i];
-    let w = 2 * Math.PI * freq;
-    
-    // --- Middle Ear Parameters (Lutman & Martin, 1979) ---
-    // Cavity
-    let Cp = 5.1e-6, La = 14e-3, Ra = 10, Rm = 390, Ct = 0.35e-6;
-    // Eardrum Losses 
-    let Rd1 = 200, Cd1 = 0.8e-6, Ld = 15e-3, Cd2 = 0.4e-6, Rd2 = 220, Rd3 = 5900, Cd3 = 0.2e-6;
-    // Ossicles
-    let Co = 1.4e-6, Lo = 40e-3, Ro = 70;
-    // Joint
-    let Cs = 0.25e-6, Rs = 3000;
-    // Cochlea
-    let Cc = 0.6e-6, Lc = 45e-3, Rc = 550;
-
-    // --- Subsystem Impedance Calculations ---
-    // 1. Middle Ear Cavities
-    let z_cav_branch = Z_C(Cp, w).add(Z_L(La, w)).add(Z_R(Ra));
-    let Z_cavity = parallel(parallel(z_cav_branch, Z_R(Rm)), Z_C(Ct, w));
-
-    // 2. Eardrum Losses (Modified topology from Figure 12)
-    let z_d3 = parallel(Z_R(Rd3), Z_C(Cd3, w));
-    let z_d2 = Z_C(Cd2, w).add(Z_R(Rd2));
-    let z_drum_p = parallel(Z_L(Ld, w), z_d2.add(z_d3));
-    let Z_eardrum_loss = Z_R(Rd1).add(Z_C(Cd1, w)).add(z_drum_p);
-
-    // 3. Ossicles (Series)
-    let Z_ossicles = Z_C(Co, w).add(Z_L(Lo, w)).add(Z_R(Ro));
-
-    // 4. Joint (Shunt)
-    let Z_joint = Z_C(Cs, w).add(Z_R(Rs));
-
-    // 5. Cochlea (Load)
-    let Z_cochlea = Z_C(Cc, w).add(Z_L(Lc, w)).add(Z_R(Rc));
-
-    // --- Circuit Analysis (Transfer Function) ---
-    // Note: C_ST is omitted from Z_ossicles here because C = infinity (0 ohms) for no reflex.
-    let Z_load = parallel(Z_joint, Z_cochlea);
-    let Z_branch2 = Z_ossicles.add(Z_load);
-    let Z_total = Z_cavity.add(parallel(Z_eardrum_loss, Z_branch2));
-
-    let V_branch2_ratio = parallel(Z_eardrum_loss, Z_branch2).div(Z_total);
-    let V_cochlea_ratio = Z_load.div(Z_branch2);
-    
-    let H_middle = V_branch2_ratio.mul(V_cochlea_ratio);
-    let mag_m = 20 * Math.log10(H_middle.mag()) + 30.9; // Includes areal/lever gain
-    mag_middle.push(mag_m);
-
-    // Combine Outer and Middle
-    let mag_out = mag_total[i];
-    mag_combined.push(mag_out + mag_m);
-}
-        }
-
-        // Calculate Resonances for Stats Box
-        let canal_res = C / (4 * length);
-        let min_pinna_idx = mag_pinna.indexOf(Math.min(...mag_pinna));
-        let notch_f = f[min_pinna_idx];
-
-        document.getElementById('stats_box').innerHTML = `
-            <strong>Calculated Resonances:</strong><br><br>
-            • Ear Canal Peak: ${Math.round(canal_res)} Hz<br>
-            • Concha Helmholtz: ${Math.round(fh)} Hz<br>
-            • Primary Pinna Notch: ${Math.round(notch_f)} Hz
-        `;
-
-        // Draw Plotly Chart
-        const traceTotal = { x: f, y: mag_total, mode: 'lines', name: 'Total Output', line: {color: 'black', width: 3} };
-        const traceCanal = { x: f, y: mag_canal, mode: 'lines', name: 'Ear Canal', line: {color: 'blue'} };
-        const traceCavity = { x: f, y: mag_cavity, mode: 'lines', name: 'Concha Cavity', line: {color: 'green'} };
-        const traceReflector = { x: f, y: mag_reflector, mode: 'lines', name: 'Reflector', line: {color: 'red'} };
-        const tracePinna = { x: f, y: mag_pinna, mode: 'lines', name: 'Pinna Notches', line: {color: 'magenta'} };
-
-        const layout = {
-            title: 'Outer Ear Transfer Function (HRTF Approx)',
-            xaxis: { type: 'log', title: 'Frequency (Hz)', range: [2, Math.log10(20000)] },
-            yaxis: { title: 'Magnitude (dB)', range: [-15, 30] },
-            margin: { l: 50, r: 20, t: 50, b: 50 },
-            hovermode: 'closest',
-            legend: { x: 0.02, y: 0.98 }
-        };
-
-        // Draw Plotly Chart
-        const traceTotal = { x: f, y: mag_total, mode: 'lines', name: 'Outer Ear Only', line: {color: 'black', width: 2, dash: 'dot'} };
-        const traceCanal = { x: f, y: mag_canal, mode: 'lines', name: 'Ear Canal', line: {color: 'blue'} };
-        const traceCavity = { x: f, y: mag_cavity, mode: 'lines', name: 'Concha Cavity', line: {color: 'green'} };
-        const traceReflector = { x: f, y: mag_reflector, mode: 'lines', name: 'Reflector', line: {color: 'red'} };
-        const tracePinna = { x: f, y: mag_pinna, mode: 'lines', name: 'Pinna Notches', line: {color: 'magenta'} };
+    // SINGLE LOOP for both outer and middle ear
+    for (let i = 0; i < f.length; i++) {
+        let freq = f[i];
         
-        // New Middle Ear Traces
-        const traceMiddle = { x: f, y: mag_middle, mode: 'lines', name: 'Middle Ear Only', line: {color: 'orange', width: 2} };
-        const traceCombined = { x: f, y: mag_combined, mode: 'lines', name: 'Outer + Middle Combined', line: {color: 'purple', width: 3} };
+        // --- OUTER EAR CALCULATIONS ---
+        // 1. Ear Canal
+        let k = 2 * Math.PI * freq / C;
+        let damping = 0.0014 / diam;
+        let mag_c = 20 * Math.log10(1.0 / Math.sqrt(Math.pow(Math.cos(k * length), 2) + Math.pow(damping * Math.sin(k * length), 2)));
+        mag_canal.push(mag_c);
 
-        const layout = {
-            title: 'Complete Outer & Middle Ear Transfer Function',
-            xaxis: { type: 'log', title: 'Frequency (Hz)', range: [2, Math.log10(20000)] },
-            yaxis: { title: 'Magnitude (dB)', range: [-30, 40] },
-            margin: { l: 50, r: 20, t: 50, b: 50 },
-            hovermode: 'closest',
-            legend: { x: 0.02, y: 0.98 }
-        };
+        // 2. Concha Cavity
+        let r_aper = Math.sqrt(aper / Math.PI);
+        let L_eff = cdepth + 0.85 * r_aper;
+        fh = (C / (2 * Math.PI)) * Math.sqrt(aper / (vol * L_eff));
+        let w_ratio = freq / fh;
+        let Q = 3.0;
+        let mag_cav = 20 * Math.log10(1.0 + (1.5 / Math.sqrt(1 + Math.pow(Q, 2) * Math.pow(w_ratio - 1/w_ratio, 2))));
+        mag_cavity.push(mag_cav);
 
-        Plotly.newPlot('chart', [
-            traceCombined, 
-            traceTotal, 
-            traceMiddle, 
-            traceCanal, 
-            traceCavity, 
-            traceReflector, 
-            tracePinna
-        ], layout, {responsive: true});
+        // 3. Concha Reflector
+        let f_cut = C / refgeom;
+        let mag_ref = 20 * Math.log10(1.0 + 1.5 * (Math.pow(freq, 2) / (Math.pow(f_cut, 2) + Math.pow(freq, 2))));
+        mag_reflector.push(mag_ref);
+
+        // 4. Pinna Reflections
+        let angle_mod = 1.0 - 0.005 * elev + 0.002 * azim;
+        let delay = (path * angle_mod) / C;
+        let theta = -2 * Math.PI * freq * delay;
+        let mag_p = 20 * Math.log10(Math.sqrt(1 + Math.pow(strength, 2) + 2 * strength * Math.cos(theta)));
+        mag_pinna.push(mag_p);
+
+        // Combine Outer Ear
+        let current_mag_total = mag_c + mag_cav + mag_ref + mag_p;
+        mag_total.push(current_mag_total);
+
+        // --- MIDDLE EAR CALCULATIONS ---
+        let w = 2 * Math.PI * freq;
+        
+        // Middle Ear Parameters (Lutman & Martin, 1979)
+        let Cp = 5.1e-6, La = 14e-3, Ra = 10, Rm = 390, Ct = 0.35e-6;
+        let Rd1 = 200, Cd1 = 0.8e-6, Ld = 15e-3, Cd2 = 0.4e-6, Rd2 = 220, Rd3 = 5900, Cd3 = 0.2e-6;
+        let Co = 1.4e-6, Lo = 40e-3, Ro = 70;
+        let Cs = 0.25e-6, Rs = 3000;
+        let Cc = 0.6e-6, Lc = 45e-3, Rc = 550;
+
+        // Subsystem Impedances
+        let z_cav_branch = Z_C(Cp, w).add(Z_L(La, w)).add(Z_R(Ra));
+        let Z_cavity = parallel(parallel(z_cav_branch, Z_R(Rm)), Z_C(Ct, w));
+
+        let z_d3 = parallel(Z_R(Rd3), Z_C(Cd3, w));
+        let z_d2 = Z_C(Cd2, w).add(Z_R(Rd2));
+        let z_drum_p = parallel(Z_L(Ld, w), z_d2.add(z_d3));
+        let Z_eardrum_loss = Z_R(Rd1).add(Z_C(Cd1, w)).add(z_drum_p);
+
+        let Z_ossicles = Z_C(Co, w).add(Z_L(Lo, w)).add(Z_R(Ro));
+        let Z_joint = Z_C(Cs, w).add(Z_R(Rs));
+        let Z_cochlea = Z_C(Cc, w).add(Z_L(Lc, w)).add(Z_R(Rc));
+
+        // Circuit Analysis
+        let Z_load = parallel(Z_joint, Z_cochlea);
+        let Z_branch2 = Z_ossicles.add(Z_load);
+        let Z_total = Z_cavity.add(parallel(Z_eardrum_loss, Z_branch2));
+
+        let V_branch2_ratio = parallel(Z_eardrum_loss, Z_branch2).div(Z_total);
+        let V_cochlea_ratio = Z_load.div(Z_branch2);
+        
+        let H_middle = V_branch2_ratio.mul(V_cochlea_ratio);
+        let mag_m = 20 * Math.log10(H_middle.mag()) + 30.9; 
+        mag_middle.push(mag_m);
+
+        // Combine Outer and Middle
+        mag_combined.push(current_mag_total + mag_m);
     }
 
-    // Attach event listeners to all sliders
-    document.querySelectorAll('input[type="range"]').forEach(slider => {
-        slider.addEventListener('input', updateApp);
-    });
+    // Calculate Resonances for Stats Box
+    let canal_res = C / (4 * length);
+    let min_pinna_idx = mag_pinna.indexOf(Math.min(...mag_pinna));
+    let notch_f = f[min_pinna_idx];
 
-    // Initial render
-    updateApp();
+    document.getElementById('stats_box').innerHTML = `
+        <strong>Calculated Resonances:</strong><br><br>
+        • Ear Canal Peak: ${Math.round(canal_res)} Hz<br>
+        • Concha Helmholtz: ${Math.round(fh)} Hz<br>
+        • Primary Pinna Notch: ${Math.round(notch_f)} Hz
+    `;
+
+    // Draw Plotly Chart
+    const traceTotal = { x: f, y: mag_total, mode: 'lines', name: 'Outer Ear Only', line: {color: 'black', width: 2, dash: 'dot'} };
+    const traceCanal = { x: f, y: mag_canal, mode: 'lines', name: 'Ear Canal', line: {color: 'blue'} };
+    const traceCavity = { x: f, y: mag_cavity, mode: 'lines', name: 'Concha Cavity', line: {color: 'green'} };
+    const traceReflector = { x: f, y: mag_reflector, mode: 'lines', name: 'Reflector', line: {color: 'red'} };
+    const tracePinna = { x: f, y: mag_pinna, mode: 'lines', name: 'Pinna Notches', line: {color: 'magenta'} };
+    const traceMiddle = { x: f, y: mag_middle, mode: 'lines', name: 'Middle Ear Only', line: {color: 'orange', width: 2} };
+    const traceCombined = { x: f, y: mag_combined, mode: 'lines', name: 'Outer + Middle Combined', line: {color: 'purple', width: 3} };
+
+    const layout = {
+        title: 'Complete Outer & Middle Ear Transfer Function',
+        xaxis: { type: 'log', title: 'Frequency (Hz)', range: [2, Math.log10(20000)] },
+        yaxis: { title: 'Magnitude (dB)', range: [-30, 40] },
+        margin: { l: 50, r: 20, t: 50, b: 50 },
+        hovermode: 'closest',
+        legend: { x: 0.02, y: 0.98 }
+    };
+
+    Plotly.newPlot('chart', [
+        traceCombined, 
+        traceTotal, 
+        traceMiddle, 
+        traceCanal, 
+        traceCavity, 
+        traceReflector, 
+        tracePinna
+    ], layout, {responsive: true});
+}
+
+// Attach event listeners to all sliders
+document.querySelectorAll('input[type="range"]').forEach(slider => {
+    slider.addEventListener('input', updateApp);
+});
+
+// Initial render
+updateApp();
 </script>
 
 </body>
