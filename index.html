@@ -73,6 +73,77 @@
     </div>
 
     <div class="plot-area">
+        <!-- Acoustic Anatomy Reference Graphic -->
+        <div style="background: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; text-align: center;">
+            <h3 style="margin-top: 0; color: #333; font-size: 1.1em; border-bottom: none;">Acoustic Model Geometry Reference</h3>
+            <svg width="100%" viewBox="0 0 800 300" xmlns="http://www.w3.org/2000/svg" style="max-width: 750px; font-family: sans-serif;">
+                <defs>
+                    <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto">
+                        <path d="M0,2 L0,8 L9,5 z" fill="#666" />
+                    </marker>
+                    <marker id="arrow-rev" markerWidth="10" markerHeight="10" refX="1" refY="5" orient="auto">
+                        <path d="M9,2 L9,8 L0,5 z" fill="#666" />
+                    </marker>
+                </defs>
+
+                <!-- Background Highlights -->
+                <rect x="380" y="120" width="180" height="80" fill="#f4f8fb" />
+                <path d="M 280 70 Q 350 90 380 120 L 380 200 Q 350 230 280 250 Q 240 160 280 70" fill="#fdfaf4" />
+
+                <!-- Ear Canal -->
+                <path d="M 380 120 L 560 120" stroke="#2c3e50" stroke-width="4" fill="none" />
+                <path d="M 380 200 L 560 200" stroke="#2c3e50" stroke-width="4" fill="none" />
+
+                <!-- Concha Cavity -->
+                <path d="M 280 70 Q 350 90 380 120" stroke="#2c3e50" stroke-width="4" fill="none" />
+                <path d="M 280 250 Q 350 230 380 200" stroke="#2c3e50" stroke-width="4" fill="none" />
+                <path d="M 280 70 Q 230 160 280 250" stroke="#2c3e50" stroke-width="3" fill="none" stroke-dasharray="6,4" />
+
+                <!-- Pinna / Reflector -->
+                <path d="M 180 30 Q 80 160 180 290" stroke="#2c3e50" stroke-width="5" fill="none" />
+                <path d="M 180 30 Q 230 50 280 70" stroke="#2c3e50" stroke-width="4" fill="none" />
+                <path d="M 180 290 Q 230 270 280 250" stroke="#2c3e50" stroke-width="4" fill="none" />
+
+                <!-- Tympanic Membrane -->
+                <line x1="560" y1="115" x2="575" y2="205" stroke="#e74c3c" stroke-width="4" />
+
+                <!-- Ossicles -->
+                <polyline points="568,150 600,120 625,150" stroke="#7f8c8d" stroke-width="5" fill="none" stroke-linejoin="round" />
+                <rect x="620" y="150" width="10" height="15" fill="#7f8c8d" />
+
+                <!-- Cochlea -->
+                <circle cx="660" cy="157" r="20" stroke="#3498db" stroke-width="3" fill="#ebf5fb" />
+
+                <!-- ANNOTATIONS -->
+                <!-- Pinna Path / Reflector -->
+                <line x1="120" y1="160" x2="270" y2="160" stroke="#666" stroke-width="2" marker-end="url(#arrow)" marker-start="url(#arrow-rev)" />
+                <text x="195" y="150" text-anchor="middle" font-size="12" fill="#333" font-weight="bold">Reflector Depth</text>
+                <text x="195" y="175" text-anchor="middle" font-size="10" fill="#666">Pinna Base Path</text>
+
+                <!-- Concha Dimensions -->
+                <line x1="280" y1="160" x2="380" y2="160" stroke="#666" stroke-width="2" marker-end="url(#arrow)" marker-start="url(#arrow-rev)" />
+                <text x="330" y="150" text-anchor="middle" font-size="12" fill="#333" font-weight="bold">Concha Depth</text>
+                <text x="330" y="175" text-anchor="middle" font-size="10" fill="#666">Vol &amp; Aperture</text>
+
+                <!-- Canal Length -->
+                <line x1="380" y1="230" x2="565" y2="230" stroke="#666" stroke-width="2" marker-end="url(#arrow)" marker-start="url(#arrow-rev)" />
+                <text x="472" y="248" text-anchor="middle" font-size="12" fill="#333" font-weight="bold">Canal Length</text>
+                <line x1="380" y1="205" x2="380" y2="235" stroke="#aaa" stroke-width="1" />
+                <line x1="565" y1="205" x2="565" y2="235" stroke="#aaa" stroke-width="1" />
+
+                <!-- Canal Diameter -->
+                <line x1="472" y1="120" x2="472" y2="200" stroke="#666" stroke-width="2" marker-end="url(#arrow)" marker-start="url(#arrow-rev)" />
+                <rect x="480" y="148" width="80" height="24" fill="white" opacity="0.8" />
+                <text x="485" y="165" font-size="12" fill="#333" font-weight="bold">Canal Diam</text>
+
+                <!-- Middle Ear Labels -->
+                <text x="567" y="100" text-anchor="middle" font-size="12" fill="#e74c3c" font-weight="bold">Eardrum</text>
+                <line x1="567" y1="105" x2="567" y2="115" stroke="#e74c3c" stroke-width="1" />
+                <text x="612" y="105" text-anchor="middle" font-size="12" fill="#7f8c8d" font-weight="bold">Ossicles</text>
+                <text x="660" y="125" text-anchor="middle" font-size="12" fill="#3498db" font-weight="bold">Cochlea</text>
+            </svg>
+        </div>
+
         <div id="chart" style="width:100%; height:600px;"></div>
     </div>
 </div>
@@ -236,7 +307,7 @@ function updateApp() {
     const layout = {
         title: 'Complete Outer & Middle Ear Transfer Function',
         xaxis: { type: 'log', title: 'Frequency (Hz)', range: [2, Math.log10(20000)] },
-        yaxis: { title: 'Magnitude (dB)', range: [-30, 40] },
+        yaxis: { title: 'Magnitude (dB)', range: [-30, 60] },
         margin: { l: 50, r: 20, t: 50, b: 50 },
         hovermode: 'closest',
         legend: { x: 0.02, y: 0.98 }
