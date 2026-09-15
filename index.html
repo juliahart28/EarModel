@@ -108,11 +108,19 @@
                 <line x1="560" y1="115" x2="575" y2="205" stroke="#e74c3c" stroke-width="4" />
 
                 <!-- Ossicles -->
-                <polyline points="568,150 600,120 625,150" stroke="#7f8c8d" stroke-width="5" fill="none" stroke-linejoin="round" />
-                <rect x="620" y="150" width="10" height="15" fill="#7f8c8d" />
+                <!-- Malleus -->
+                <line x1="568" y1="160" x2="595" y2="125" stroke="#7f8c8d" stroke-width="5" stroke-linecap="round" />
+                <circle cx="595" cy="125" r="4" fill="#7f8c8d" />
+
+                <!-- Incus -->
+                <path d="M 595 125 Q 615 120 620 145" stroke="#95a5a6" stroke-width="4" fill="none" stroke-linecap="round" />
+
+                <!-- Stapes -->
+                <path d="M 620 145 L 635 140 L 635 160 L 620 155 Z" stroke="#bdc3c7" stroke-width="2" fill="none" />
+                <rect x="635" y="138" width="4" height="24" fill="#bdc3c7" />
 
                 <!-- Cochlea -->
-                <circle cx="660" cy="157" r="20" stroke="#3498db" stroke-width="3" fill="#ebf5fb" />
+                <circle cx="659" cy="150" r="20" stroke="#3498db" stroke-width="3" fill="#ebf5fb" />
 
                 <!-- ANNOTATIONS -->
                 <!-- Pinna Path / Reflector -->
@@ -137,10 +145,20 @@
                 <text x="485" y="165" font-size="12" fill="#333" font-weight="bold">Canal Diam</text>
 
                 <!-- Middle Ear Labels -->
-                <text x="567" y="100" text-anchor="middle" font-size="12" fill="#e74c3c" font-weight="bold">Eardrum</text>
-                <line x1="567" y1="105" x2="567" y2="115" stroke="#e74c3c" stroke-width="1" />
-                <text x="612" y="105" text-anchor="middle" font-size="12" fill="#7f8c8d" font-weight="bold">Ossicles</text>
-                <text x="660" y="125" text-anchor="middle" font-size="12" fill="#3498db" font-weight="bold">Cochlea</text>
+                <text x="545" y="95" text-anchor="middle" font-size="11" fill="#e74c3c" font-weight="bold">Tympanic</text>
+                <text x="545" y="108" text-anchor="middle" font-size="11" fill="#e74c3c" font-weight="bold">Membrane</text>
+                <line x1="545" y1="112" x2="563" y2="140" stroke="#e74c3c" stroke-width="1" />
+
+                <text x="595" y="95" text-anchor="middle" font-size="11" fill="#7f8c8d" font-weight="bold">Malleus</text>
+                <line x1="595" y1="100" x2="590" y2="115" stroke="#7f8c8d" stroke-width="1" />
+
+                <text x="635" y="95" text-anchor="middle" font-size="11" fill="#95a5a6" font-weight="bold">Incus</text>
+                <line x1="635" y1="100" x2="610" y2="125" stroke="#95a5a6" stroke-width="1" />
+
+                <text x="625" y="185" text-anchor="middle" font-size="11" fill="#7f8c8d" font-weight="bold">Stapes</text>
+                <line x1="625" y1="175" x2="625" y2="155" stroke="#7f8c8d" stroke-width="1" />
+                
+                <text x="675" y="115" text-anchor="middle" font-size="12" fill="#3498db" font-weight="bold">Cochlea</text>
             </svg>
         </div>
 
