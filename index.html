@@ -376,9 +376,9 @@ function updateApp() {
     `;
 
     // TRACES
-    const traceLeftOuter = { x: f, y: mag_total_L, mode: 'lines', name: 'Left Outer (HRTF)', line: {color: 'rgba(52, 152, 219, 0.5)', width: 2, dash: 'dot'}, visible: 'legendonly' };
-    const traceRightOuter = { x: f, y: mag_total_R, mode: 'lines', name: 'Right Outer (HRTF)', line: {color: 'rgba(231, 76, 60, 0.5)', width: 2, dash: 'dot'}, visible: 'legendonly' };
-    const traceMiddle = { x: f, y: mag_middle, mode: 'lines', name: 'Middle Ear Only', line: {color: 'orange', width: 2}, visible: 'legendonly' };
+    const traceLeftOuter = { x: f, y: mag_total_L, mode: 'lines', name: 'Left Outer (HRTF)', line: {color: 'rgba(52, 152, 219, 0.5)', width: 2, dash: 'dot'} };
+    const traceRightOuter = { x: f, y: mag_total_R, mode: 'lines', name: 'Right Outer (HRTF)', line: {color: 'rgba(231, 76, 60, 0.5)', width: 2, dash: 'dot'} };
+    const traceMiddle = { x: f, y: mag_middle, mode: 'lines', name: 'Middle Ear Only', line: {color: 'orange', width: 2} };
     
     const traceLeftCombined = { x: f, y: mag_combined_L, mode: 'lines', name: 'Left Ear (Combined)', line: {color: '#2980b9', width: 3} };
     const traceRightCombined = { x: f, y: mag_combined_R, mode: 'lines', name: 'Right Ear (Combined)', line: {color: '#c0392b', width: 3} };
