@@ -21,8 +21,7 @@
 
 <div class="container">
     <div class="controls">
-        <h2>Biological Parameters</h2>
-        
+        <h2>Outer Ear Parameters</h2>
         <div class="slider-group">
             <label>Canal Length (m) <span id="val_len">0.0250</span></label>
             <input type="range" id="s_len" min="0.015" max="0.035" step="0.001" value="0.025">
@@ -44,8 +43,35 @@
             <input type="range" id="s_cdepth" min="0.005" max="0.03" step="0.001" value="0.015">
         </div>
         
-        <h2 style="margin-top: 30px;">Positional Parameters</h2>
+        <h2 style="margin-top: 30px;">Middle Ear Parameters</h2>
+        <div class="slider-group">
+            <label>Eardrum Area (mm²) <span id="val_area_ed">81.0</span></label>
+            <input type="range" id="s_area_ed" min="40" max="120" step="0.5" value="81">
+        </div>
+        <div class="slider-group">
+            <label>Footplate Area (mm²) <span id="val_area_fp">3.0</span></label>
+            <input type="range" id="s_area_fp" min="1" max="6" step="0.1" value="3.0">
+        </div>
+        <div class="slider-group">
+            <label>Tympanic Cavity Vol (cm³) <span id="val_cav_vol">0.50</span></label>
+            <input type="range" id="s_cav_vol" min="0.05" max="1.5" step="0.05" value="0.5">
+        </div>
+
+        <h3 style="font-size: 1em; margin-top: 15px; border-bottom: 1px solid #eee;">Ossicular Chain Lengths</h3>
+        <div class="slider-group">
+            <label>Malleus Length (mm) <span id="val_malleus">8.0</span></label>
+            <input type="range" id="s_malleus" min="4" max="12" step="0.1" value="8.0">
+        </div>
+        <div class="slider-group">
+            <label>Incus Length (mm) <span id="val_incus">6.0</span></label>
+            <input type="range" id="s_incus" min="3" max="10" step="0.1" value="6.0">
+        </div>
+        <div class="slider-group">
+            <label>Stapes Length (mm) <span id="val_stapes">3.0</span></label>
+            <input type="range" id="s_stapes" min="1.5" max="5.0" step="0.1" value="3.0">
+        </div>
         
+        <h2 style="margin-top: 30px;">Positional Parameters</h2>
         <div class="slider-group">
             <label>Reflector Depth (m) <span id="val_refgeom">0.0300</span></label>
             <input type="range" id="s_refgeom" min="0.01" max="0.06" step="0.001" value="0.03">
@@ -98,11 +124,6 @@
                 <path d="M 280 70 Q 350 90 380 120" stroke="#2c3e50" stroke-width="4" fill="none" />
                 <path d="M 280 250 Q 350 230 380 200" stroke="#2c3e50" stroke-width="4" fill="none" />
                 <path d="M 280 70 Q 230 160 280 250" stroke="#2c3e50" stroke-width="3" fill="none" stroke-dasharray="6,4" />
-
-                <!-- Pinna / Reflector -->
-                <path d="M 180 30 Q 80 160 180 290" stroke="#2c3e50" stroke-width="5" fill="none" />
-                <path d="M 180 30 Q 230 50 280 70" stroke="#2c3e50" stroke-width="4" fill="none" />
-                <path d="M 180 290 Q 230 270 280 250" stroke="#2c3e50" stroke-width="4" fill="none" />
 
                 <!-- Tympanic Membrane -->
                 <line x1="560" y1="115" x2="575" y2="205" stroke="#e74c3c" stroke-width="4" />
@@ -182,7 +203,6 @@
     mag() { return Math.sqrt(this.re * this.re + this.im * this.im); }
 }
 
-// Basic AC Impedance blocks
 function Z_R(R) { return new Complex(R, 0); }
 function Z_L(L, w) { return new Complex(0, w * L); }
 function Z_C(C, w) { return new Complex(0, -1 / (w * C)); }
@@ -190,54 +210,78 @@ function parallel(z1, z2) { return (z1.mul(z2)).div(z1.add(z2)); }
 
 const C = 343.0; // Speed of sound
 
-// Generate log-spaced frequencies from 100 to 20000 Hz
 const numPoints = 500;
 const f = Array.from({length: numPoints}, (_, i) => 
     Math.pow(10, Math.log10(100) + i * (Math.log10(20000) - Math.log10(100)) / (numPoints - 1))
 );
 
 function updateApp() {
-    // Get values from sliders
+    // Outer Ear values
     const length = parseFloat(document.getElementById('s_len').value);
     const diam = parseFloat(document.getElementById('s_diam').value);
     const vol = parseFloat(document.getElementById('s_vol').value);
     const aper = parseFloat(document.getElementById('s_aper').value);
     const cdepth = parseFloat(document.getElementById('s_cdepth').value);
+    
+    // Middle Ear Areas & Volume
+    const area_ed = parseFloat(document.getElementById('s_area_ed').value);
+    const area_fp = parseFloat(document.getElementById('s_area_fp').value);
+    const cav_vol_cm3 = parseFloat(document.getElementById('s_cav_vol').value);
+
+    // Ossicular Lengths
+    const malleus_len = parseFloat(document.getElementById('s_malleus').value);
+    const incus_len = parseFloat(document.getElementById('s_incus').value);
+    const stapes_len = parseFloat(document.getElementById('s_stapes').value);
+
+    // Positional values
     const refgeom = parseFloat(document.getElementById('s_refgeom').value);
     const path = parseFloat(document.getElementById('s_path').value);
     const strength = parseFloat(document.getElementById('s_strength').value);
     const azim = parseFloat(document.getElementById('s_azim').value);
     const elev = parseFloat(document.getElementById('s_elev').value);
 
-    // Update labels
+    // Update UI text labels
     document.getElementById('val_len').innerText = length.toFixed(4);
     document.getElementById('val_diam').innerText = diam.toFixed(4);
     document.getElementById('val_vol').innerText = vol.toExponential(1);
     document.getElementById('val_aper').innerText = aper.toExponential(1);
     document.getElementById('val_cdepth').innerText = cdepth.toFixed(4);
+    
+    document.getElementById('val_area_ed').innerText = area_ed.toFixed(1);
+    document.getElementById('val_area_fp').innerText = area_fp.toFixed(1);
+    document.getElementById('val_cav_vol').innerText = cav_vol_cm3.toFixed(2);
+    
+    document.getElementById('val_malleus').innerText = malleus_len.toFixed(1);
+    document.getElementById('val_incus').innerText = incus_len.toFixed(1);
+    document.getElementById('val_stapes').innerText = stapes_len.toFixed(1);
+
     document.getElementById('val_refgeom').innerText = refgeom.toFixed(4);
     document.getElementById('val_path').innerText = path.toFixed(4);
     document.getElementById('val_strength').innerText = strength.toFixed(2);
     document.getElementById('val_azim').innerText = azim;
     document.getElementById('val_elev').innerText = elev;
+    
+    // --- CALCULATE MIDDLE EAR TRANSFORMER GAIN ---
+    // Areal Ratio Gain
+    let areal_gain = 20 * Math.log10(area_ed / area_fp);
+    
+    // Lever Ratio Gain (Malleus Length / Incus Length)
+    let lever_gain = 20 * Math.log10(malleus_len / incus_len);
+    
+    let me_transformer_gain = areal_gain + lever_gain;
 
-    // Initialize all arrays at the top
     let mag_total = [], mag_canal = [], mag_cavity = [], mag_reflector = [], mag_pinna = [];
     let mag_middle = [], mag_combined = [];
     let fh = 0;
 
-    // SINGLE LOOP for both outer and middle ear
     for (let i = 0; i < f.length; i++) {
         let freq = f[i];
         
-        // --- OUTER EAR CALCULATIONS ---
-        // 1. Ear Canal
         let k = 2 * Math.PI * freq / C;
         let damping = 0.0014 / diam;
         let mag_c = 20 * Math.log10(1.0 / Math.sqrt(Math.pow(Math.cos(k * length), 2) + Math.pow(damping * Math.sin(k * length), 2)));
         mag_canal.push(mag_c);
 
-        // 2. Concha Cavity
         let r_aper = Math.sqrt(aper / Math.PI);
         let L_eff = cdepth + 0.85 * r_aper;
         fh = (C / (2 * Math.PI)) * Math.sqrt(aper / (vol * L_eff));
@@ -246,33 +290,29 @@ function updateApp() {
         let mag_cav = 20 * Math.log10(1.0 + (1.5 / Math.sqrt(1 + Math.pow(Q, 2) * Math.pow(w_ratio - 1/w_ratio, 2))));
         mag_cavity.push(mag_cav);
 
-        // 3. Concha Reflector
         let f_cut = C / refgeom;
         let mag_ref = 20 * Math.log10(1.0 + 1.5 * (Math.pow(freq, 2) / (Math.pow(f_cut, 2) + Math.pow(freq, 2))));
         mag_reflector.push(mag_ref);
 
-        // 4. Pinna Reflections
         let angle_mod = 1.0 - 0.005 * elev + 0.002 * azim;
         let delay = (path * angle_mod) / C;
         let theta = -2 * Math.PI * freq * delay;
         let mag_p = 20 * Math.log10(Math.sqrt(1 + Math.pow(strength, 2) + 2 * strength * Math.cos(theta)));
         mag_pinna.push(mag_p);
 
-        // Combine Outer Ear
         let current_mag_total = mag_c + mag_cav + mag_ref + mag_p;
         mag_total.push(current_mag_total);
 
-        // --- MIDDLE EAR CALCULATIONS ---
         let w = 2 * Math.PI * freq;
         
-        // Middle Ear Parameters (Lutman & Martin, 1979)
-        let Cp = 5.1e-6, La = 14e-3, Ra = 10, Rm = 390, Ct = 0.35e-6;
+        let Ct = (cav_vol_cm3 / 0.5) * 0.35e-6; 
+        
+        let Cp = 5.1e-6, La = 14e-3, Ra = 10, Rm = 390;
         let Rd1 = 200, Cd1 = 0.8e-6, Ld = 15e-3, Cd2 = 0.4e-6, Rd2 = 220, Rd3 = 5900, Cd3 = 0.2e-6;
         let Co = 1.4e-6, Lo = 40e-3, Ro = 70;
         let Cs = 0.25e-6, Rs = 3000;
         let Cc = 0.6e-6, Lc = 45e-3, Rc = 550;
 
-        // Subsystem Impedances
         let z_cav_branch = Z_C(Cp, w).add(Z_L(La, w)).add(Z_R(Ra));
         let Z_cavity = parallel(parallel(z_cav_branch, Z_R(Rm)), Z_C(Ct, w));
 
@@ -285,7 +325,6 @@ function updateApp() {
         let Z_joint = Z_C(Cs, w).add(Z_R(Rs));
         let Z_cochlea = Z_C(Cc, w).add(Z_L(Lc, w)).add(Z_R(Rc));
 
-        // Circuit Analysis
         let Z_load = parallel(Z_joint, Z_cochlea);
         let Z_branch2 = Z_ossicles.add(Z_load);
         let Z_total = Z_cavity.add(parallel(Z_eardrum_loss, Z_branch2));
@@ -294,26 +333,28 @@ function updateApp() {
         let V_cochlea_ratio = Z_load.div(Z_branch2);
         
         let H_middle = V_branch2_ratio.mul(V_cochlea_ratio);
-        let mag_m = 20 * Math.log10(H_middle.mag()) + 30.9; 
+        
+        // Add dynamic gain
+        let mag_m = 20 * Math.log10(H_middle.mag()) + me_transformer_gain; 
         mag_middle.push(mag_m);
 
-        // Combine Outer and Middle
         mag_combined.push(current_mag_total + mag_m);
     }
 
-    // Calculate Resonances for Stats Box
     let canal_res = C / (4 * length);
     let min_pinna_idx = mag_pinna.indexOf(Math.min(...mag_pinna));
     let notch_f = f[min_pinna_idx];
 
     document.getElementById('stats_box').innerHTML = `
-        <strong>Calculated Resonances:</strong><br><br>
+        <strong>Calculated Resonances & Gain:</strong><br><br>
         • Ear Canal Peak: ${Math.round(canal_res)} Hz<br>
         • Concha Helmholtz: ${Math.round(fh)} Hz<br>
-        • Primary Pinna Notch: ${Math.round(notch_f)} Hz
+        • Primary Pinna Notch: ${Math.round(notch_f)} Hz<br><br>
+        • Areal Ratio Gain: ${areal_gain.toFixed(1)} dB<br>
+        • Lever Ratio Gain (Malleus/Incus): ${lever_gain.toFixed(1)} dB<br>
+        • <strong>Total Middle Ear Gain: ${me_transformer_gain.toFixed(1)} dB</strong>
     `;
 
-    // Draw Plotly Chart
     const traceTotal = { x: f, y: mag_total, mode: 'lines', name: 'Outer Ear Only', line: {color: 'black', width: 2, dash: 'dot'} };
     const traceCanal = { x: f, y: mag_canal, mode: 'lines', name: 'Ear Canal', line: {color: 'blue'} };
     const traceCavity = { x: f, y: mag_cavity, mode: 'lines', name: 'Concha Cavity', line: {color: 'green'} };
@@ -326,7 +367,7 @@ function updateApp() {
         title: 'Complete Outer & Middle Ear Transfer Function',
         xaxis: { type: 'log', title: 'Frequency (Hz)', range: [2, Math.log10(20000)] },
         yaxis: { title: 'Magnitude (dB)', range: [-30, 60] },
-        margin: { l: 50, r: 20, t: 50, b: 100 }, // Increased bottom margin (b) to 100
+        margin: { l: 50, r: 20, t: 50, b: 100 },
         hovermode: 'closest',
         legend: { 
             orientation: 'h', 
@@ -348,12 +389,10 @@ function updateApp() {
     ], layout, {responsive: true});
 }
 
-// Attach event listeners to all sliders
 document.querySelectorAll('input[type="range"]').forEach(slider => {
     slider.addEventListener('input', updateApp);
 });
 
-// Initial render
 updateApp();
 </script>
 
