@@ -3,12 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Outer & Middle Ear Acoustic Model</title>
+    <title>Binaural HRTF & Middle Ear Acoustic Model</title>
     <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
     <style>
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color: #f4f4f9; padding: 20px; color: #333; }
         .container { max-width: 1200px; margin: 0 auto; display: flex; flex-wrap: wrap; gap: 20px; }
-        .controls { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); flex: 1; min-width: 300px; }
+        .controls { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); flex: 1; min-width: 300px; max-height: 95vh; overflow-y: auto;}
         .plot-area { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); flex: 2; min-width: 600px; }
         .slider-group { margin-bottom: 15px; }
         .slider-group label { display: flex; justify-content: space-between; font-size: 0.9em; font-weight: bold; margin-bottom: 5px; }
@@ -21,7 +21,17 @@
 
 <div class="container">
     <div class="controls">
-        <h2>Outer Ear Parameters</h2>
+        <h2>Spatial Location (HRTF)</h2>
+        <div class="slider-group">
+            <label>Azimuth (deg) [Left < 0 > Right] <span id="val_azim">0</span></label>
+            <input type="range" id="s_azim" min="-90" max="90" step="1" value="0">
+        </div>
+        <div class="slider-group">
+            <label>Elevation (deg) <span id="val_elev">0</span></label>
+            <input type="range" id="s_elev" min="-45" max="90" step="1" value="0">
+        </div>
+
+        <h2 style="margin-top: 30px;">Outer Ear Parameters</h2>
         <div class="slider-group">
             <label>Canal Length (m) <span id="val_len">0.0250</span></label>
             <input type="range" id="s_len" min="0.015" max="0.035" step="0.001" value="0.025">
@@ -41,6 +51,18 @@
         <div class="slider-group">
             <label>Concha Depth (m) <span id="val_cdepth">0.0150</span></label>
             <input type="range" id="s_cdepth" min="0.005" max="0.03" step="0.001" value="0.015">
+        </div>
+        <div class="slider-group">
+            <label>Reflector Depth (m) <span id="val_refgeom">0.0300</span></label>
+            <input type="range" id="s_refgeom" min="0.01" max="0.06" step="0.001" value="0.03">
+        </div>
+        <div class="slider-group">
+            <label>Pinna Base Path (m) <span id="val_path">0.0400</span></label>
+            <input type="range" id="s_path" min="0.01" max="0.1" step="0.001" value="0.04">
+        </div>
+        <div class="slider-group">
+            <label>Reflect Strength <span id="val_strength">0.60</span></label>
+            <input type="range" id="s_strength" min="0.1" max="0.9" step="0.01" value="0.6">
         </div>
         
         <h2 style="margin-top: 30px;">Middle Ear Parameters</h2>
@@ -69,28 +91,6 @@
         <div class="slider-group">
             <label>Stapes Length (mm) <span id="val_stapes">3.0</span></label>
             <input type="range" id="s_stapes" min="1.5" max="5.0" step="0.1" value="3.0">
-        </div>
-        
-        <h2 style="margin-top: 30px;">Positional Parameters</h2>
-        <div class="slider-group">
-            <label>Reflector Depth (m) <span id="val_refgeom">0.0300</span></label>
-            <input type="range" id="s_refgeom" min="0.01" max="0.06" step="0.001" value="0.03">
-        </div>
-        <div class="slider-group">
-            <label>Pinna Base Path (m) <span id="val_path">0.0400</span></label>
-            <input type="range" id="s_path" min="0.01" max="0.1" step="0.001" value="0.04">
-        </div>
-        <div class="slider-group">
-            <label>Reflect Strength <span id="val_strength">0.60</span></label>
-            <input type="range" id="s_strength" min="0.1" max="0.9" step="0.01" value="0.6">
-        </div>
-        <div class="slider-group">
-            <label>Azimuth (deg) <span id="val_azim">0</span></label>
-            <input type="range" id="s_azim" min="-90" max="90" step="1" value="0">
-        </div>
-        <div class="slider-group">
-            <label>Elevation (deg) <span id="val_elev">0</span></label>
-            <input type="range" id="s_elev" min="-45" max="90" step="1" value="0">
         </div>
 
         <div class="stats" id="stats_box">
@@ -216,12 +216,19 @@ const f = Array.from({length: numPoints}, (_, i) =>
 );
 
 function updateApp() {
+    // Spatial Values
+    const azim = parseFloat(document.getElementById('s_azim').value);
+    const elev = parseFloat(document.getElementById('s_elev').value);
+
     // Outer Ear values
     const length = parseFloat(document.getElementById('s_len').value);
     const diam = parseFloat(document.getElementById('s_diam').value);
     const vol = parseFloat(document.getElementById('s_vol').value);
     const aper = parseFloat(document.getElementById('s_aper').value);
     const cdepth = parseFloat(document.getElementById('s_cdepth').value);
+    const refgeom = parseFloat(document.getElementById('s_refgeom').value);
+    const path = parseFloat(document.getElementById('s_path').value);
+    const strength = parseFloat(document.getElementById('s_strength').value);
     
     // Middle Ear Areas & Volume
     const area_ed = parseFloat(document.getElementById('s_area_ed').value);
@@ -233,19 +240,18 @@ function updateApp() {
     const incus_len = parseFloat(document.getElementById('s_incus').value);
     const stapes_len = parseFloat(document.getElementById('s_stapes').value);
 
-    // Positional values
-    const refgeom = parseFloat(document.getElementById('s_refgeom').value);
-    const path = parseFloat(document.getElementById('s_path').value);
-    const strength = parseFloat(document.getElementById('s_strength').value);
-    const azim = parseFloat(document.getElementById('s_azim').value);
-    const elev = parseFloat(document.getElementById('s_elev').value);
-
     // Update UI text labels
+    document.getElementById('val_azim').innerText = azim;
+    document.getElementById('val_elev').innerText = elev;
+
     document.getElementById('val_len').innerText = length.toFixed(4);
     document.getElementById('val_diam').innerText = diam.toFixed(4);
     document.getElementById('val_vol').innerText = vol.toExponential(1);
     document.getElementById('val_aper').innerText = aper.toExponential(1);
     document.getElementById('val_cdepth').innerText = cdepth.toFixed(4);
+    document.getElementById('val_refgeom').innerText = refgeom.toFixed(4);
+    document.getElementById('val_path').innerText = path.toFixed(4);
+    document.getElementById('val_strength').innerText = strength.toFixed(2);
     
     document.getElementById('val_area_ed').innerText = area_ed.toFixed(1);
     document.getElementById('val_area_fp').innerText = area_fp.toFixed(1);
@@ -254,33 +260,25 @@ function updateApp() {
     document.getElementById('val_malleus').innerText = malleus_len.toFixed(1);
     document.getElementById('val_incus').innerText = incus_len.toFixed(1);
     document.getElementById('val_stapes').innerText = stapes_len.toFixed(1);
-
-    document.getElementById('val_refgeom').innerText = refgeom.toFixed(4);
-    document.getElementById('val_path').innerText = path.toFixed(4);
-    document.getElementById('val_strength').innerText = strength.toFixed(2);
-    document.getElementById('val_azim').innerText = azim;
-    document.getElementById('val_elev').innerText = elev;
     
     // --- CALCULATE MIDDLE EAR TRANSFORMER GAIN ---
-    // Areal Ratio Gain
     let areal_gain = 20 * Math.log10(area_ed / area_fp);
-    
-    // Lever Ratio Gain (Malleus Length / Incus Length)
     let lever_gain = 20 * Math.log10(malleus_len / incus_len);
-    
     let me_transformer_gain = areal_gain + lever_gain;
 
-    let mag_total = [], mag_canal = [], mag_cavity = [], mag_reflector = [], mag_pinna = [];
-    let mag_middle = [], mag_combined = [];
+    // Output Arrays
+    let mag_total_L = [], mag_total_R = [];
+    let mag_combined_L = [], mag_combined_R = [];
+    let mag_middle = [];
     let fh = 0;
 
     for (let i = 0; i < f.length; i++) {
         let freq = f[i];
         
+        // --- 1. COMMON OUTER EAR (Symmetric parts) ---
         let k = 2 * Math.PI * freq / C;
         let damping = 0.0014 / diam;
         let mag_c = 20 * Math.log10(1.0 / Math.sqrt(Math.pow(Math.cos(k * length), 2) + Math.pow(damping * Math.sin(k * length), 2)));
-        mag_canal.push(mag_c);
 
         let r_aper = Math.sqrt(aper / Math.PI);
         let L_eff = cdepth + 0.85 * r_aper;
@@ -288,23 +286,50 @@ function updateApp() {
         let w_ratio = freq / fh;
         let Q = 3.0;
         let mag_cav = 20 * Math.log10(1.0 + (1.5 / Math.sqrt(1 + Math.pow(Q, 2) * Math.pow(w_ratio - 1/w_ratio, 2))));
-        mag_cavity.push(mag_cav);
 
         let f_cut = C / refgeom;
         let mag_ref = 20 * Math.log10(1.0 + 1.5 * (Math.pow(freq, 2) / (Math.pow(f_cut, 2) + Math.pow(freq, 2))));
-        mag_reflector.push(mag_ref);
 
-        let angle_mod = 1.0 - 0.005 * elev + 0.002 * azim;
-        let delay = (path * angle_mod) / C;
-        let theta = -2 * Math.PI * freq * delay;
-        let mag_p = 20 * Math.log10(Math.sqrt(1 + Math.pow(strength, 2) + 2 * strength * Math.cos(theta)));
-        mag_pinna.push(mag_p);
+        // --- 2. BINAURAL PINNA REFLECTIONS ---
+        // Azimuth shifts the notch up or down depending on the ear
+        let angle_mod_R = 1.0 - 0.005 * elev + 0.002 * azim;
+        let angle_mod_L = 1.0 - 0.005 * elev - 0.002 * azim;
 
-        let current_mag_total = mag_c + mag_cav + mag_ref + mag_p;
-        mag_total.push(current_mag_total);
+        let delay_R = (path * angle_mod_R) / C;
+        let delay_L = (path * angle_mod_L) / C;
 
-        let w = 2 * Math.PI * freq;
+        let theta_p_R = -2 * Math.PI * freq * delay_R;
+        let theta_p_L = -2 * Math.PI * freq * delay_L;
+
+        let mag_p_R = 20 * Math.log10(Math.sqrt(1 + Math.pow(strength, 2) + 2 * strength * Math.cos(theta_p_R)));
+        let mag_p_L = 20 * Math.log10(Math.sqrt(1 + Math.pow(strength, 2) + 2 * strength * Math.cos(theta_p_L)));
+
+        // --- 3. BINAURAL ILD (HEAD SHADOWING) ---
+        // A simple empirical curve: max 20dB loss for shadowed ear, max 5dB boost for direct ear at high frequencies.
+        let azim_rad = azim * Math.PI / 180;
+        let f_shadow_weight = Math.min(freq / 3000, 1.0); // Shadowing mostly affects > 3kHz
         
+        let ild_R = 0;
+        let ild_L = 0;
+        
+        if (azim > 0) {
+            // Source on Right
+            ild_R = 5 * Math.sin(azim_rad) * f_shadow_weight;      // Pressure boost
+            ild_L = -20 * Math.sin(azim_rad) * f_shadow_weight;    // Head shadow attenuation
+        } else if (azim < 0) {
+            // Source on Left
+            ild_R = -20 * Math.abs(Math.sin(azim_rad)) * f_shadow_weight;
+            ild_L = 5 * Math.abs(Math.sin(azim_rad)) * f_shadow_weight;
+        }
+
+        let mag_hrtf_R = mag_c + mag_cav + mag_ref + mag_p_R + ild_R;
+        let mag_hrtf_L = mag_c + mag_cav + mag_ref + mag_p_L + ild_L;
+
+        mag_total_R.push(mag_hrtf_R);
+        mag_total_L.push(mag_hrtf_L);
+
+        // --- 4. MIDDLE EAR CALCULATIONS (Symmetric) ---
+        let w = 2 * Math.PI * freq;
         let Ct = (cav_vol_cm3 / 0.5) * 0.35e-6; 
         
         let Cp = 5.1e-6, La = 14e-3, Ra = 10, Rm = 390;
@@ -334,39 +359,34 @@ function updateApp() {
         
         let H_middle = V_branch2_ratio.mul(V_cochlea_ratio);
         
-        // Add dynamic gain
         let mag_m = 20 * Math.log10(H_middle.mag()) + me_transformer_gain; 
         mag_middle.push(mag_m);
 
-        mag_combined.push(current_mag_total + mag_m);
+        // --- 5. FINAL BINAURAL COMBINATION ---
+        mag_combined_R.push(mag_hrtf_R + mag_m);
+        mag_combined_L.push(mag_hrtf_L + mag_m);
     }
 
-    let canal_res = C / (4 * length);
-    let min_pinna_idx = mag_pinna.indexOf(Math.min(...mag_pinna));
-    let notch_f = f[min_pinna_idx];
-
     document.getElementById('stats_box').innerHTML = `
-        <strong>Calculated Resonances & Gain:</strong><br><br>
-        • Ear Canal Peak: ${Math.round(canal_res)} Hz<br>
-        • Concha Helmholtz: ${Math.round(fh)} Hz<br>
-        • Primary Pinna Notch: ${Math.round(notch_f)} Hz<br><br>
+        <strong>Calculated Middle Ear Gain:</strong><br><br>
         • Areal Ratio Gain: ${areal_gain.toFixed(1)} dB<br>
         • Lever Ratio Gain (Malleus/Incus): ${lever_gain.toFixed(1)} dB<br>
-        • <strong>Total Middle Ear Gain: ${me_transformer_gain.toFixed(1)} dB</strong>
+        • <strong>Total Middle Ear Gain: ${me_transformer_gain.toFixed(1)} dB</strong><br><br>
+        <em>Note: Move the Azimuth slider to observe binaural Head Shadowing (ILD) and Pinna Notch shifts!</em>
     `;
 
-    const traceTotal = { x: f, y: mag_total, mode: 'lines', name: 'Outer Ear Only', line: {color: 'black', width: 2, dash: 'dot'} };
-    const traceCanal = { x: f, y: mag_canal, mode: 'lines', name: 'Ear Canal', line: {color: 'blue'} };
-    const traceCavity = { x: f, y: mag_cavity, mode: 'lines', name: 'Concha Cavity', line: {color: 'green'} };
-    const traceReflector = { x: f, y: mag_reflector, mode: 'lines', name: 'Reflector', line: {color: 'red'} };
-    const tracePinna = { x: f, y: mag_pinna, mode: 'lines', name: 'Pinna Notches', line: {color: 'magenta'} };
-    const traceMiddle = { x: f, y: mag_middle, mode: 'lines', name: 'Middle Ear Only', line: {color: 'orange', width: 2} };
-    const traceCombined = { x: f, y: mag_combined, mode: 'lines', name: 'Outer + Middle Combined', line: {color: 'purple', width: 3} };
+    // TRACES
+    const traceLeftOuter = { x: f, y: mag_total_L, mode: 'lines', name: 'Left Outer (HRTF)', line: {color: 'rgba(52, 152, 219, 0.5)', width: 2, dash: 'dot'}, visible: 'legendonly' };
+    const traceRightOuter = { x: f, y: mag_total_R, mode: 'lines', name: 'Right Outer (HRTF)', line: {color: 'rgba(231, 76, 60, 0.5)', width: 2, dash: 'dot'}, visible: 'legendonly' };
+    const traceMiddle = { x: f, y: mag_middle, mode: 'lines', name: 'Middle Ear Only', line: {color: 'orange', width: 2}, visible: 'legendonly' };
+    
+    const traceLeftCombined = { x: f, y: mag_combined_L, mode: 'lines', name: 'Left Ear (Combined)', line: {color: '#2980b9', width: 3} };
+    const traceRightCombined = { x: f, y: mag_combined_R, mode: 'lines', name: 'Right Ear (Combined)', line: {color: '#c0392b', width: 3} };
 
     const layout = {
-        title: 'Complete Outer & Middle Ear Transfer Function',
+        title: 'Binaural Transfer Function (Left vs Right HRTF)',
         xaxis: { type: 'log', title: 'Frequency (Hz)', range: [2, Math.log10(20000)] },
-        yaxis: { title: 'Magnitude (dB)', range: [-30, 60] },
+        yaxis: { title: 'Magnitude (dB)', range: [-40, 60] },
         margin: { l: 50, r: 20, t: 50, b: 100 },
         hovermode: 'closest',
         legend: { 
@@ -379,13 +399,11 @@ function updateApp() {
     };
 
     Plotly.newPlot('chart', [
-        traceCombined, 
-        traceTotal, 
-        traceMiddle, 
-        traceCanal, 
-        traceCavity, 
-        traceReflector, 
-        tracePinna
+        traceLeftCombined, 
+        traceRightCombined, 
+        traceLeftOuter,
+        traceRightOuter,
+        traceMiddle
     ], layout, {responsive: true});
 }
 
