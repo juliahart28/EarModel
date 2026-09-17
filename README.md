@@ -1,2 +1,2 @@
 # EarModel
-MUE 510 AI-generated coding assignment which models the outer, middle, and inner ear using an HRIR and HRTF graphing method. The program allows for changeable physical parameters, and models both the left and right ear depending on the azimuth and distance of the source.
+MUE 510 AI-generated coding assignment. This model synthesizes Head-Related Impulse Responses (HRIRs) using customizable physical parameters for the outer and middle ear. It leverages a custom inverse FFT and the Web Audio API to calculate spatial localization cues—including ITD, ILD, and pinna filtering—and performs real-time binaural convolution on user-uploaded audio files.
