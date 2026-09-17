@@ -255,7 +255,7 @@ const f = Array.from({length: numPoints}, (_, i) =>
 // Complex HRTF Helper for the IFFT
 function calcComplexHRTF(freq, p) {
     let w = 2 * Math.PI * freq;
-    if (freq === 0) freq = 0.01;
+    if (freq === 0) freq = 0.01; // Avoid divide by zero
     
     // 1. Canal
     let k_wave = w / C;
