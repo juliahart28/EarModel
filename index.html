@@ -253,9 +253,10 @@ const f = Array.from({length: numPoints}, (_, i) =>
 );
 
 // Complex HRTF Helper for the IFFT
+// Complex HRTF Helper for the IFFT
 function calcComplexHRTF(freq, p) {
-    let w = 2 * Math.PI * freq;
-    if (freq === 0) freq = 0.01; // Avoid divide by zero
+    if (freq === 0) freq = 0.01; // Avoid divide by zero FIRST
+    let w = 2 * Math.PI * freq;  // THEN calculate w
     
     // 1. Canal
     let k_wave = w / C;
@@ -271,6 +272,67 @@ function calcComplexHRTF(freq, p) {
         let w_ratio = freq / fh;
         H_cav = (new Complex(1, 0)).add((new Complex(1.5, 0)).div(new Complex(1, 3.0 * (w_ratio - 1/w_ratio))));
     }
+
+    // 3. Reflector
+    let f_cut = C / p.refgeom;
+    let H_ref = new Complex(1 + 1.5 * (Math.pow(freq, 2) / (Math.pow(f_cut, 2) + Math.pow(freq, 2))), 0);
+
+    // 4. Middle Ear
+    let Cp = 5.1e-6, La = 14e-3, Ra = 10, Rm = 390;
+    let Rd1 = 200, Cd1 = 0.8e-6, Ld = 15e-3, Cd2 = 0.4e-6, Rd2 = 220, Rd3 = 5900, Cd3 = 0.2e-6;
+    let Co = 1.4e-6, Lo = 40e-3, Ro = 70, Cs = 0.25e-6, Rs = 3000;
+    let Cc = 0.6e-6, Lc = 45e-3, Rc = 550;
+    let Ct = (p.cav_vol_cm3 / 0.5) * 0.35e-6; 
+
+    let z_cav_branch = Z_C(Cp, w).add(Z_L(La, w)).add(Z_R(Ra));
+    let Z_cavity = parallel(parallel(z_cav_branch, Z_R(Rm)), Z_C(Ct, w));
+    let z_d3 = parallel(Z_R(Rd3), Z_C(Cd3, w));
+    let z_d2 = Z_C(Cd2, w).add(Z_R(Rd2));
+    let z_drum_p = parallel(Z_L(Ld, w), z_d2.add(z_d3));
+    let Z_eardrum_loss = Z_R(Rd1).add(Z_C(Cd1, w)).add(z_drum_p);
+    let Z_ossicles = Z_C(Co, w).add(Z_L(Lo, w)).add(Z_R(Ro));
+    let Z_joint = Z_C(Cs, w).add(Z_R(Rs));
+    let Z_cochlea = Z_C(Cc, w).add(Z_L(Lc, w)).add(Z_R(Rc));
+    let Z_load = parallel(Z_joint, Z_cochlea);
+    let Z_branch2 = Z_ossicles.add(Z_load);
+    let Z_total = Z_cavity.add(parallel(Z_eardrum_loss, Z_branch2));
+
+    let V_branch2_ratio = parallel(Z_eardrum_loss, Z_branch2).div(Z_total);
+    let V_cochlea_ratio = Z_load.div(Z_branch2);
+    let H_middle = V_branch2_ratio.mul(V_cochlea_ratio).mul(new Complex(Math.pow(10, p.me_gain/20), 0));
+
+    // Combine Mono
+    let H_mono = H_canal.mul(H_cav).mul(H_ref).mul(H_middle);
+
+    // 5. Binaural ITD, ILD & Pinna
+    let azim_rad = p.azim * Math.PI / 180;
+    let itd_R = 0, itd_L = 0;
+    if (p.azim > 0) { itd_L = (HEAD_RADIUS / C) * (azim_rad + Math.sin(azim_rad)); } 
+    else { itd_R = (HEAD_RADIUS / C) * (Math.abs(azim_rad) + Math.sin(Math.abs(azim_rad))); }
+
+    let f_shadow = Math.min(freq / 3000, 1.0);
+    let ild_R = 0, ild_L = 0;
+    if (p.azim > 0) {
+        ild_R = 5 * Math.sin(azim_rad) * f_shadow; 
+        ild_L = -20 * Math.sin(azim_rad) * f_shadow;
+    } else {
+        ild_R = -20 * Math.abs(Math.sin(azim_rad)) * f_shadow;
+        ild_L = 5 * Math.abs(Math.sin(azim_rad)) * f_shadow;
+    }
+
+    let a_R = 1.0 - 0.005 * p.elev + 0.002 * p.azim;
+    let a_L = 1.0 - 0.005 * p.elev - 0.002 * p.azim;
+    let d_p_R = (p.path * a_R) / C;
+    let d_p_L = (p.path * a_L) / C;
+
+    let H_pinna_R = (new Complex(1, 0)).add(polar(p.strength, -2 * Math.PI * freq * d_p_R));
+    let H_pinna_L = (new Complex(1, 0)).add(polar(p.strength, -2 * Math.PI * freq * d_p_L));
+
+    let H_L = H_mono.mul(H_pinna_L).mul(polar(Math.pow(10, ild_L/20), -2 * Math.PI * freq * itd_L));
+    let H_R = H_mono.mul(H_pinna_R).mul(polar(Math.pow(10, ild_R/20), -2 * Math.PI * freq * itd_R));
+
+    return { H_L, H_R };
+}
 
     // 3. Reflector
     let f_cut = C / p.refgeom;
