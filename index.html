@@ -207,6 +207,7 @@ const df = Fs / N;
 let audioCtx = null;
 let currentSource = null;
 let convolver = null;
+let gainNode = null; // New node for boosting volume!
 let decodedAudioBuffer = null;
 let currentHRIR_L = new Float32Array(N);
 let currentHRIR_R = new Float32Array(N);
@@ -437,8 +438,7 @@ function updateApp() {
     document.getElementById('stats_box').innerHTML = `
         <strong>Estimated Spatial Cues:</strong><br>
         • ITD (Time Diff): ${est_itd.toFixed(2)} ms<br>
-        • Total Middle Ear Gain: ${me_transformer_gain.toFixed(1)} dB<br>
-        <em>*Upload audio to test convolution!*</em>
+        • Total Middle Ear Gain: ${me_transformer_gain.toFixed(1)} dB
     `;
 
     // Draw Plotly Graphs
@@ -472,6 +472,8 @@ document.getElementById('audio_file').addEventListener('change', function(e) {
     if (!audioCtx) { 
         audioCtx = new (window.AudioContext || window.webkitAudioContext)(); 
         convolver = audioCtx.createConvolver(); 
+        gainNode = audioCtx.createGain(); // Initialize the Gain Node
+        gainNode.gain.value = 15.0; // Boost the final audio by 15x
     }
     let reader = new FileReader();
     reader.onload = function(ev) {
@@ -496,8 +498,10 @@ document.getElementById('btn_play').addEventListener('click', function() {
     currentSource.buffer = decodedAudioBuffer;
     currentSource.loop = true;
     
+    // Wire up the new signal path: Source -> Convolver -> GAIN BOOST -> Destination
     currentSource.connect(convolver);
-    convolver.connect(audioCtx.destination);
+    convolver.connect(gainNode);
+    gainNode.connect(audioCtx.destination);
     
     currentSource.start();
     document.getElementById('btn_stop').style.display = 'block';
