@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Binaural HRTF & Middle Ear Acoustic Model</title>
+    <title>Binaural HRIR Generator & Renderer</title>
     <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
     <style>
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color: #f4f4f9; padding: 20px; color: #333; }
@@ -16,7 +16,7 @@
         h2 { margin-top: 0; font-size: 1.2em; border-bottom: 2px solid #eee; padding-bottom: 10px; }
         .stats { margin-top: 20px; padding: 15px; background: #eef2f5; border-radius: 6px; font-size: 0.9em; }
         
-        /* New Audio Player Styles */
+        /* Audio Player Styles */
         .audio-player { margin-bottom: 20px; padding: 15px; background: #dff0d8; border-radius: 6px; border: 1px solid #d6e9c6; }
         button { background: #2980b9; color: white; border: none; padding: 10px 15px; border-radius: 4px; cursor: pointer; width: 100%; font-weight: bold; margin-top: 10px;}
         button:hover { background: #1f6391; }
@@ -28,7 +28,7 @@
     <div class="controls">
         <h2>Spatial Location (HRTF)</h2>
         
-        <!-- NEW AUDIO PLAYER -->
+        <!-- AUDIO PLAYER -->
         <div class="audio-player">
             <h3 style="margin-top:0; font-size: 1em;">Binaural Audio Renderer</h3>
             <p style="font-size: 0.85em; margin-bottom: 5px;">Upload a mono file to convolve with the generated HRIR.</p>
@@ -114,7 +114,7 @@
     </div>
 
     <div class="plot-area">
-        <!-- EXACT SVG FROM PREVIOUS PROMPT -->
+        <!-- SVG Graphic -->
         <div style="background: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; text-align: center;">
             <h3 style="margin-top: 0; color: #333; font-size: 1.1em; border-bottom: none;">Acoustic Model Geometry Reference</h3>
             <svg width="100%" viewBox="0 0 800 300" xmlns="http://www.w3.org/2000/svg" style="max-width: 750px; font-family: sans-serif;">
@@ -166,18 +166,16 @@
             </svg>
         </div>
 
-        <!-- NEW PLOT DIVS ADDED HERE -->
+        <!-- PLOT DIVS -->
         <div id="chart" style="width:100%; height:500px; margin-bottom: 20px;"></div>
         <div id="chart_ild" style="width:100%; height:300px; margin-bottom: 20px;"></div>
         <div id="chart_hrir" style="width:100%; height:300px;"></div>
     </div>
 </div>
 <script>
-    class Complex {
-    constructor(re, im) {
-        this.re = re;
-        this.im = im;
-    }
+// --- MATH CLASSES & GLOBALS ---
+class Complex {
+    constructor(re, im) { this.re = re; this.im = im; }
     add(c) { return new Complex(this.re + c.re, this.im + c.im); }
     sub(c) { return new Complex(this.re - c.re, this.im - c.im); }
     mul(c) { return new Complex(this.re * c.re - this.im * c.im, this.re * c.im + this.im * c.re); }
@@ -190,7 +188,10 @@
 
 function Z_R(R) { return new Complex(R, 0); }
 function Z_L(L, w) { return new Complex(0, w * L); }
-function Z_C(C, w) { return new Complex(0, -1 / (w * C)); }
+function Z_C(C, w) { 
+    w = Math.max(w, 1e-10); // Ultimate fail-safe to prevent divide-by-zero
+    return new Complex(0, -1 / (w * C)); 
+}
 function parallel(z1, z2) { return (z1.mul(z2)).div(z1.add(z2)); }
 function polar(r, theta) { return new Complex(r * Math.cos(theta), r * Math.sin(theta)); }
 
@@ -246,17 +247,16 @@ function ifft1D(re, im) {
     return re; 
 }
 
-// Log spaced frequency array (Your exact original loop array)
+// Log spaced frequency array (Your original loop array)
 const numPoints = 500;
 const f = Array.from({length: numPoints}, (_, i) => 
     Math.pow(10, Math.log10(100) + i * (Math.log10(20000) - Math.log10(100)) / (numPoints - 1))
 );
 
-// Complex HRTF Helper for the IFFT
-// Complex HRTF Helper for the IFFT
+// --- COMPLEX HRTF CALCULATION ---
 function calcComplexHRTF(freq, p) {
-    if (freq === 0) freq = 0.01; // Avoid divide by zero FIRST
-    let w = 2 * Math.PI * freq;  // THEN calculate w
+    freq = Math.max(freq, 1e-3); // Prevent divide by zero error here!
+    let w = 2 * Math.PI * freq;
     
     // 1. Canal
     let k_wave = w / C;
@@ -269,7 +269,7 @@ function calcComplexHRTF(freq, p) {
     let fh = (C / (2 * Math.PI)) * Math.sqrt(p.aper / (p.vol * L_eff));
     let H_cav = new Complex(1,0);
     if(fh > 0) {
-        let w_ratio = freq / fh;
+        let w_ratio = Math.max(freq / fh, 1e-10);
         H_cav = (new Complex(1, 0)).add((new Complex(1.5, 0)).div(new Complex(1, 3.0 * (w_ratio - 1/w_ratio))));
     }
 
@@ -333,73 +333,10 @@ function calcComplexHRTF(freq, p) {
 
     return { H_L, H_R };
 }
-
-    // 3. Reflector
-    let f_cut = C / p.refgeom;
-    let H_ref = new Complex(1 + 1.5 * (Math.pow(freq, 2) / (Math.pow(f_cut, 2) + Math.pow(freq, 2))), 0);
-
-    // 4. Middle Ear
-    let Cp = 5.1e-6, La = 14e-3, Ra = 10, Rm = 390;
-    let Rd1 = 200, Cd1 = 0.8e-6, Ld = 15e-3, Cd2 = 0.4e-6, Rd2 = 220, Rd3 = 5900, Cd3 = 0.2e-6;
-    let Co = 1.4e-6, Lo = 40e-3, Ro = 70, Cs = 0.25e-6, Rs = 3000;
-    let Cc = 0.6e-6, Lc = 45e-3, Rc = 550;
-    let Ct = (p.cav_vol_cm3 / 0.5) * 0.35e-6; 
-
-    let z_cav_branch = Z_C(Cp, w).add(Z_L(La, w)).add(Z_R(Ra));
-    let Z_cavity = parallel(parallel(z_cav_branch, Z_R(Rm)), Z_C(Ct, w));
-    let z_d3 = parallel(Z_R(Rd3), Z_C(Cd3, w));
-    let z_d2 = Z_C(Cd2, w).add(Z_R(Rd2));
-    let z_drum_p = parallel(Z_L(Ld, w), z_d2.add(z_d3));
-    let Z_eardrum_loss = Z_R(Rd1).add(Z_C(Cd1, w)).add(z_drum_p);
-    let Z_ossicles = Z_C(Co, w).add(Z_L(Lo, w)).add(Z_R(Ro));
-    let Z_joint = Z_C(Cs, w).add(Z_R(Rs));
-    let Z_cochlea = Z_C(Cc, w).add(Z_L(Lc, w)).add(Z_R(Rc));
-    let Z_load = parallel(Z_joint, Z_cochlea);
-    let Z_branch2 = Z_ossicles.add(Z_load);
-    let Z_total = Z_cavity.add(parallel(Z_eardrum_loss, Z_branch2));
-
-    let V_branch2_ratio = parallel(Z_eardrum_loss, Z_branch2).div(Z_total);
-    let V_cochlea_ratio = Z_load.div(Z_branch2);
-    let H_middle = V_branch2_ratio.mul(V_cochlea_ratio).mul(new Complex(Math.pow(10, p.me_gain/20), 0));
-
-    // Combine Mono
-    let H_mono = H_canal.mul(H_cav).mul(H_ref).mul(H_middle);
-
-    // 5. Binaural ITD, ILD & Pinna
-    let azim_rad = p.azim * Math.PI / 180;
-    let itd_R = 0, itd_L = 0;
-    if (p.azim > 0) { itd_L = (HEAD_RADIUS / C) * (azim_rad + Math.sin(azim_rad)); } 
-    else { itd_R = (HEAD_RADIUS / C) * (Math.abs(azim_rad) + Math.sin(Math.abs(azim_rad))); }
-
-    let f_shadow = Math.min(freq / 3000, 1.0);
-    let ild_R = 0, ild_L = 0;
-    if (p.azim > 0) {
-        ild_R = 5 * Math.sin(azim_rad) * f_shadow; 
-        ild_L = -20 * Math.sin(azim_rad) * f_shadow;
-    } else {
-        ild_R = -20 * Math.abs(Math.sin(azim_rad)) * f_shadow;
-        ild_L = 5 * Math.abs(Math.sin(azim_rad)) * f_shadow;
-    }
-
-    let a_R = 1.0 - 0.005 * p.elev + 0.002 * p.azim;
-    let a_L = 1.0 - 0.005 * p.elev - 0.002 * p.azim;
-    let d_p_R = (p.path * a_R) / C;
-    let d_p_L = (p.path * a_L) / C;
-
-    let H_pinna_R = (new Complex(1, 0)).add(polar(p.strength, -2 * Math.PI * freq * d_p_R));
-    let H_pinna_L = (new Complex(1, 0)).add(polar(p.strength, -2 * Math.PI * freq * d_p_L));
-
-    let H_L = H_mono.mul(H_pinna_L).mul(polar(Math.pow(10, ild_L/20), -2 * Math.PI * freq * itd_L));
-    let H_R = H_mono.mul(H_pinna_R).mul(polar(Math.pow(10, ild_R/20), -2 * Math.PI * freq * itd_R));
-
-    return { H_L, H_R };
-}
+// --- MAIN UPDATE FUNCTION ---
 function updateApp() {
-    // Spatial Values
     const azim = parseFloat(document.getElementById('s_azim').value);
     const elev = parseFloat(document.getElementById('s_elev').value);
-
-    // Outer Ear values
     const length = parseFloat(document.getElementById('s_len').value);
     const diam = parseFloat(document.getElementById('s_diam').value);
     const vol = parseFloat(document.getElementById('s_vol').value);
@@ -409,17 +346,13 @@ function updateApp() {
     const path = parseFloat(document.getElementById('s_path').value);
     const strength = parseFloat(document.getElementById('s_strength').value);
     
-    // Middle Ear Areas & Volume
     const area_ed = parseFloat(document.getElementById('s_area_ed').value);
     const area_fp = parseFloat(document.getElementById('s_area_fp').value);
     const cav_vol_cm3 = parseFloat(document.getElementById('s_cav_vol').value);
-
-    // Ossicular Lengths
     const malleus_len = parseFloat(document.getElementById('s_malleus').value);
     const incus_len = parseFloat(document.getElementById('s_incus').value);
     const stapes_len = parseFloat(document.getElementById('s_stapes').value);
 
-    // Update UI text labels
     document.getElementById('val_azim').innerText = azim;
     document.getElementById('val_elev').innerText = elev;
     document.getElementById('val_len').innerText = length.toFixed(4);
@@ -437,111 +370,33 @@ function updateApp() {
     document.getElementById('val_incus').innerText = incus_len.toFixed(1);
     document.getElementById('val_stapes').innerText = stapes_len.toFixed(1);
     
-    // --- CALCULATE MIDDLE EAR TRANSFORMER GAIN ---
     let areal_gain = 20 * Math.log10(area_ed / area_fp);
     let lever_gain = 20 * Math.log10(malleus_len / incus_len);
     let me_transformer_gain = areal_gain + lever_gain;
 
-    // Output Arrays
-    let mag_total_L = [], mag_total_R = [];
-    let mag_combined_L = [], mag_combined_R = [];
-    let mag_middle = [];
-    let ild_plot_array = [];
-    let fh = 0;
-
-    // ==========================================
-    // YOUR EXACT ORIGINAL LOG-SPACED LOOP
-    // ==========================================
-    for (let i = 0; i < f.length; i++) {
-        let freq = f[i];
-        
-        // --- 1. COMMON OUTER EAR (Symmetric parts) ---
-        let k = 2 * Math.PI * freq / C;
-        let damping = 0.0014 / diam;
-        let mag_c = 20 * Math.log10(1.0 / Math.sqrt(Math.pow(Math.cos(k * length), 2) + Math.pow(damping * Math.sin(k * length), 2)));
-
-        let r_aper = Math.sqrt(aper / Math.PI);
-        let L_eff = cdepth + 0.85 * r_aper;
-        fh = (C / (2 * Math.PI)) * Math.sqrt(aper / (vol * L_eff));
-        let w_ratio = freq / fh;
-        let Q = 3.0;
-        let mag_cav = 20 * Math.log10(1.0 + (1.5 / Math.sqrt(1 + Math.pow(Q, 2) * Math.pow(w_ratio - 1/w_ratio, 2))));
-
-        let f_cut = C / refgeom;
-        let mag_ref = 20 * Math.log10(1.0 + 1.5 * (Math.pow(freq, 2) / (Math.pow(f_cut, 2) + Math.pow(freq, 2))));
-
-        // --- 2. BINAURAL PINNA REFLECTIONS ---
-        let angle_mod_R = 1.0 - 0.005 * elev + 0.002 * azim;
-        let angle_mod_L = 1.0 - 0.005 * elev - 0.002 * azim;
-        let delay_R = (path * angle_mod_R) / C;
-        let delay_L = (path * angle_mod_L) / C;
-        let theta_p_R = -2 * Math.PI * freq * delay_R;
-        let theta_p_L = -2 * Math.PI * freq * delay_L;
-        let mag_p_R = 20 * Math.log10(Math.sqrt(1 + Math.pow(strength, 2) + 2 * strength * Math.cos(theta_p_R)));
-        let mag_p_L = 20 * Math.log10(Math.sqrt(1 + Math.pow(strength, 2) + 2 * strength * Math.cos(theta_p_L)));
-
-        // --- 3. BINAURAL ILD (HEAD SHADOWING) ---
-        let azim_rad = azim * Math.PI / 180;
-        let f_shadow_weight = Math.min(freq / 3000, 1.0); 
-        let ild_R = 0, ild_L = 0;
-        if (azim > 0) {
-            ild_R = 5 * Math.sin(azim_rad) * f_shadow_weight;      
-            ild_L = -20 * Math.sin(azim_rad) * f_shadow_weight;    
-        } else if (azim < 0) {
-            ild_R = -20 * Math.abs(Math.sin(azim_rad)) * f_shadow_weight;
-            ild_L = 5 * Math.abs(Math.sin(azim_rad)) * f_shadow_weight;
-        }
-
-        let mag_hrtf_R = mag_c + mag_cav + mag_ref + mag_p_R + ild_R;
-        let mag_hrtf_L = mag_c + mag_cav + mag_ref + mag_p_L + ild_L;
-
-        mag_total_R.push(mag_hrtf_R);
-        mag_total_L.push(mag_hrtf_L);
-        ild_plot_array.push(mag_hrtf_R - mag_hrtf_L); // Add to ILD Array
-
-        // --- 4. MIDDLE EAR CALCULATIONS (Symmetric) ---
-        let w = 2 * Math.PI * freq;
-        let Ct = (cav_vol_cm3 / 0.5) * 0.35e-6; 
-        let Cp = 5.1e-6, La = 14e-3, Ra = 10, Rm = 390;
-        let Rd1 = 200, Cd1 = 0.8e-6, Ld = 15e-3, Cd2 = 0.4e-6, Rd2 = 220, Rd3 = 5900, Cd3 = 0.2e-6;
-        let Co = 1.4e-6, Lo = 40e-3, Ro = 70;
-        let Cs = 0.25e-6, Rs = 3000;
-        let Cc = 0.6e-6, Lc = 45e-3, Rc = 550;
-
-        let z_cav_branch = Z_C(Cp, w).add(Z_L(La, w)).add(Z_R(Ra));
-        let Z_cavity = parallel(parallel(z_cav_branch, Z_R(Rm)), Z_C(Ct, w));
-        let z_d3 = parallel(Z_R(Rd3), Z_C(Cd3, w));
-        let z_d2 = Z_C(Cd2, w).add(Z_R(Rd2));
-        let z_drum_p = parallel(Z_L(Ld, w), z_d2.add(z_d3));
-        let Z_eardrum_loss = Z_R(Rd1).add(Z_C(Cd1, w)).add(z_drum_p);
-        let Z_ossicles = Z_C(Co, w).add(Z_L(Lo, w)).add(Z_R(Ro));
-        let Z_joint = Z_C(Cs, w).add(Z_R(Rs));
-        let Z_cochlea = Z_C(Cc, w).add(Z_L(Lc, w)).add(Z_R(Rc));
-
-        let Z_load = parallel(Z_joint, Z_cochlea);
-        let Z_branch2 = Z_ossicles.add(Z_load);
-        let Z_total = Z_cavity.add(parallel(Z_eardrum_loss, Z_branch2));
-
-        let V_branch2_ratio = parallel(Z_eardrum_loss, Z_branch2).div(Z_total);
-        let V_cochlea_ratio = Z_load.div(Z_branch2);
-        
-        let H_middle = V_branch2_ratio.mul(V_cochlea_ratio);
-        let mag_m = 20 * Math.log10(H_middle.mag()) + me_transformer_gain; 
-        mag_middle.push(mag_m);
-
-        // --- 5. FINAL BINAURAL COMBINATION ---
-        mag_combined_R.push(mag_hrtf_R + mag_m);
-        mag_combined_L.push(mag_hrtf_L + mag_m);
-    }
-    // ==========================================
-
-    // --- NEW REQUIREMENT: LINEAR FREQUENCY LOOP FOR IFFT ---
-    let reL = new Float32Array(N), imL = new Float32Array(N);
-    let reR = new Float32Array(N), imR = new Float32Array(N);
     let pObj = {
         length: length, diam: diam, aper: aper, cdepth: cdepth, vol: vol, refgeom: refgeom, 
         cav_vol_cm3: cav_vol_cm3, me_gain: me_transformer_gain, azim: azim, elev: elev, path: path, strength: strength
     };
+
+    // Calculate Data for Log-Scale Plots
+    let mag_total_L = [], mag_total_R = [], mag_combined_L = [], mag_combined_R = [], mag_middle = [], ild_plot_array = [];
+    
+    for (let i = 0; i < f.length; i++) {
+        let freq = f[i];
+        let { H_L, H_R } = calcComplexHRTF(freq, pObj);
+        
+        let m_L = 20 * Math.log10(H_L.mag());
+        let m_R = 20 * Math.log10(H_R.mag());
+        
+        mag_combined_L.push(m_L);
+        mag_combined_R.push(m_R);
+        ild_plot_array.push(m_R - m_L);
+    }
+
+    // Calculate Linear IFFT Data
+    let reL = new Float32Array(N), imL = new Float32Array(N);
+    let reR = new Float32Array(N), imR = new Float32Array(N);
 
     for (let k = 0; k <= N/2; k++) {
         let f_lin = k * df;
@@ -549,19 +404,18 @@ function updateApp() {
         reL[k] = H_L.re; imL[k] = H_L.im;
         reR[k] = H_R.re; imR[k] = H_R.im;
         
-        // Complex Conjugate Mirroring for Real IFFT output
         if (k > 0 && k < N/2) {
             reL[N-k] = H_L.re; imL[N-k] = -H_L.im;
             reR[N-k] = H_R.re; imR[N-k] = -H_R.im;
         }
     }
-    imL[0] = 0; imR[0] = 0; imL[N/2] = 0; imR[N/2] = 0; // Real DC and Nyquist
+    imL[0] = 0; imR[0] = 0; imL[N/2] = 0; imR[N/2] = 0; 
 
-    // Inverse FFT to get HRIR!
+    // Inverse FFT
     currentHRIR_L = ifft1D(reL, imL);
     currentHRIR_R = ifft1D(reR, imR);
 
-    // Update Audio Convolver in real time
+    // Update Live Audio Buffer
     if(convolver && audioCtx) {
         let hrirBuffer = audioCtx.createBuffer(2, N, audioCtx.sampleRate);
         hrirBuffer.copyToChannel(currentHRIR_L, 0);
@@ -569,15 +423,15 @@ function updateApp() {
         convolver.buffer = hrirBuffer;
     }
 
-    // HRIR Plot Array
+    // Prepare Plotly HRIR Time Data
     let t_plot = [], hrirL_plot = [], hrirR_plot = [];
-    for(let i=0; i<256; i++) { // Show first ~5.8ms
+    for(let i=0; i<256; i++) { 
         t_plot.push((i / Fs) * 1000); 
         hrirL_plot.push(currentHRIR_L[i]);
         hrirR_plot.push(currentHRIR_R[i]);
     }
 
-    // Update Stats Box
+    // Stats Box
     let azim_rad_stat = azim * Math.PI / 180;
     let est_itd = (HEAD_RADIUS / C) * (Math.abs(azim_rad_stat) + Math.sin(Math.abs(azim_rad_stat))) * 1000;
     document.getElementById('stats_box').innerHTML = `
@@ -587,25 +441,20 @@ function updateApp() {
         <em>*Upload audio to test convolution!*</em>
     `;
 
-    // --- PLOT 1: ORIGINAL HRTF MAGNITUDE (Exactly as you had it) ---
+    // Draw Plotly Graphs
     Plotly.newPlot('chart', [
         { x: f, y: mag_combined_L, mode: 'lines', name: 'Left Ear (Combined)', line: {color: '#2980b9', width: 3} },
-        { x: f, y: mag_combined_R, mode: 'lines', name: 'Right Ear (Combined)', line: {color: '#c0392b', width: 3} },
-        { x: f, y: mag_total_L, mode: 'lines', name: 'Left Outer (HRTF)', line: {color: 'rgba(52, 152, 219, 0.5)', width: 2, dash: 'dot'} },
-        { x: f, y: mag_total_R, mode: 'lines', name: 'Right Outer (HRTF)', line: {color: 'rgba(231, 76, 60, 0.5)', width: 2, dash: 'dot'} },
-        { x: f, y: mag_middle, mode: 'lines', name: 'Middle Ear Only', line: {color: 'orange', width: 2} }
+        { x: f, y: mag_combined_R, mode: 'lines', name: 'Right Ear (Combined)', line: {color: '#c0392b', width: 3} }
     ], {
-        title: 'Binaural Transfer Function (Left vs Right HRTF)', xaxis: { type: 'log', title: 'Frequency (Hz)', range: [2, Math.log10(20000)] }, yaxis: { title: 'Magnitude (dB)', range: [-40, 60] }, margin: { l: 50, r: 20, t: 50, b: 50 }, hovermode: 'closest', legend: { orientation: 'h', yanchor: 'top', y: -0.15, xanchor: 'center', x: 0.5 }
+        title: 'Binaural Transfer Function (HRTF)', xaxis: { type: 'log', title: 'Frequency (Hz)', range: [2, Math.log10(20000)] }, yaxis: { title: 'Magnitude (dB)', range: [-40, 60] }, margin: { l: 50, r: 20, t: 50, b: 50 }, hovermode: 'closest', legend: { orientation: 'h', yanchor: 'top', y: -0.15, xanchor: 'center', x: 0.5 }
     }, {responsive: true});
 
-    // --- PLOT 2: ILD vs Frequency (Assignment Requirement) ---
     Plotly.newPlot('chart_ild', [
         { x: f, y: ild_plot_array, mode: 'lines', name: 'ILD (R - L)', fill: 'tozeroy', line: {color: '#27ae60'} }
     ], {
-        title: 'Interaural Level Difference (Head Shadow)', xaxis: { type: 'log', title: 'Frequency (Hz)', range: [2, Math.log10(20000)] }, yaxis: { title: 'ILD (dB)', range: [-30, 30] }, margin: { l: 50, r: 20, t: 40, b: 40 }
+        title: 'Interaural Level Difference (Head Shadowing)', xaxis: { type: 'log', title: 'Frequency (Hz)', range: [2, Math.log10(20000)] }, yaxis: { title: 'ILD (dB)', range: [-30, 30] }, margin: { l: 50, r: 20, t: 40, b: 40 }
     }, {responsive: true});
 
-    // --- PLOT 3: TIME-DOMAIN HRIR (Assignment Requirement) ---
     Plotly.newPlot('chart_hrir', [
         { x: t_plot, y: hrirL_plot, mode: 'lines', name: 'Left HRIR', line: {color: '#2980b9'} },
         { x: t_plot, y: hrirR_plot, mode: 'lines', name: 'Right HRIR', line: {color: '#c0392b', dash:'dot'} }
@@ -613,11 +462,12 @@ function updateApp() {
         title: 'Synthetic Impulse Response (HRIR)', xaxis: { title: 'Time (ms)' }, yaxis: { title: 'Amplitude' }, margin: { l: 50, r: 20, t: 40, b: 40 }
     }, {responsive: true});
 }
+// Attach listeners
 document.querySelectorAll('input[type="range"]').forEach(slider => {
     slider.addEventListener('input', updateApp);
 });
 
-// Audio Web API Handler
+// Audio Rendering Logic
 document.getElementById('audio_file').addEventListener('change', function(e) {
     if (!audioCtx) { 
         audioCtx = new (window.AudioContext || window.webkitAudioContext)(); 
@@ -637,7 +487,6 @@ document.getElementById('btn_play').addEventListener('click', function() {
     if(!decodedAudioBuffer) { alert("Please upload an audio file first."); return; }
     if(currentSource) { currentSource.stop(); }
     
-    // Pass latest HRIR into Convolver Buffer
     let hrirBuffer = audioCtx.createBuffer(2, N, audioCtx.sampleRate);
     hrirBuffer.copyToChannel(currentHRIR_L, 0);
     hrirBuffer.copyToChannel(currentHRIR_R, 1);
@@ -647,7 +496,6 @@ document.getElementById('btn_play').addEventListener('click', function() {
     currentSource.buffer = decodedAudioBuffer;
     currentSource.loop = true;
     
-    // Connect chain: Source -> Convolver(HRIR) -> Speakers
     currentSource.connect(convolver);
     convolver.connect(audioCtx.destination);
     
@@ -660,7 +508,7 @@ document.getElementById('btn_stop').addEventListener('click', function() {
     this.style.display = 'none';
 });
 
-// Initial render
+// Run once on load
 updateApp();
 </script>
 
