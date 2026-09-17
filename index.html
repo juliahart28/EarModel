@@ -473,7 +473,7 @@ document.getElementById('audio_file').addEventListener('change', function(e) {
         audioCtx = new (window.AudioContext || window.webkitAudioContext)(); 
         convolver = audioCtx.createConvolver(); 
         gainNode = audioCtx.createGain(); // Initialize the Gain Node
-        gainNode.gain.value = 15.0; // Boost the final audio by 15x
+        gainNode.gain.value = 40.0; // Boost the final audio by 40x
     }
     let reader = new FileReader();
     reader.onload = function(ev) {
